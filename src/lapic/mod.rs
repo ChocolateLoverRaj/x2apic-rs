@@ -7,10 +7,13 @@ pub use builder::xapic_base;
 pub use builder::LocalApicBuilder;
 
 mod lapic_msr;
+use lapic_id::decode_lapic_id;
+use lapic_id::encode_lapic_id;
 use lapic_msr::*;
 pub use lapic_msr::{
     ErrorFlags, IpiAllShorthand, IpiDestMode, TimerDivide, TimerMode,
 };
+mod lapic_id;
 
 /// Specifies which version of the APIC specification we are operating in
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -82,7 +85,7 @@ impl LocalApic {
 
     /// Returns the local APIC ID.
     pub unsafe fn id(&self) -> u32 {
-        self.regs.id() as u32
+        decode_lapic_id(self.regs.id(), self.mode)
     }
 
     /// Returns the version number of the local APIC.
@@ -208,7 +211,10 @@ impl LocalApic {
     pub unsafe fn send_nmi(&mut self, dest: u32) {
         let mut icr_val = self.format_icr(0, IpiDeliveryMode::NonMaskable);
 
-        icr_val.set_bit_range(ICR_DESTINATION, u64::from(dest));
+        icr_val.set_bit_range(
+            ICR_DESTINATION,
+            u64::from(encode_lapic_id(dest, self.mode)),
+        );
         self.regs.write_icr(icr_val);
     }
 
