@@ -143,11 +143,21 @@ impl LocalApic {
         self.regs.tccr() as u32
     }
 
-    /// Sets the logical x2APIC ID.
+    /// Sets the logical xAPIC ID.
+    /// This can only be set in xAPIC mode.
+    /// IN x2APIC mode, this is read-only.
+    pub unsafe fn set_logical_id(&mut self, dest: u32) {
+        if let LocalApicMode::X2Apic = self.mode {
+            panic!("Cannot set the logical id because LDR is read-only in x2APIC mode.")
+        }
+        self.regs.write_ldr(encode_lapic_id(dest, self.mode));
+    }
+
+    /// Gets the logical x2APIC ID.
     ///
     /// This is used when the APIC is in logical mode.
-    pub unsafe fn set_logical_id(&mut self, dest: u32) {
-        self.regs.write_ldr(dest);
+    pub fn get_logical_id(&mut self) -> u32 {
+        decode_lapic_id(unsafe { self.regs.ldr() }, self.mode)
     }
 
     /// Sends an IPI to the processor(s) in `dest`.
